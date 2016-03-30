@@ -1,0 +1,20 @@
+<!--igvc_run.launch-->
+<launch>
+
+
+<!--  <node pkg="tf" type="static_transform_publisher" name="map_to_odom"
+        args="0 0 0.39 0 0.55 0 map bumblebee2 100" />
+ -->
+  <node pkg="pgr_pcl" type="pgr_pcl_node" name="camera_node" output="screen"/>
+ 
+  <node pkg="image_view" type="image_view" name="Left_rgb_image" output="screen" args="image:=/camera/left/rgb" />
+
+<!-- Start an rviz node with a custom configuration
+<node pkg="rviz" type="rviz" output="screen" name="rviz" args="-d $(find usma_triclops)/launch/triclops_camera.rviz"/>
+-->
+</launch>
+
+<!--
+
+rosrun image_view image_view image:=/camera/left/rgb
+-->
