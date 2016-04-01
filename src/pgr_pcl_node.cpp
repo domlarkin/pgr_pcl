@@ -43,6 +43,7 @@ main( int argc, char** argv )
 
     // Get the camera info and print it out
     fc2Error = camera.GetCameraInfo( &camInfo );
+
     if ( fc2Error != FC2::PGRERROR_OK )
     {
         ROS_INFO( "Failed to get camera info from camera\n" );
@@ -55,6 +56,7 @@ main( int argc, char** argv )
 
     // Part 1 of 2 for grabImage method
     fc2Error = camera.StartCapture();
+
     if ( fc2Error != FC2::PGRERROR_OK )
     {
         exit( FC2T::handleFc2Error( fc2Error ) );
@@ -73,10 +75,12 @@ main( int argc, char** argv )
 
     //+=+=+=+=+=+=+=+=+=+=+=+=  WHILE LOOP +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
     ros::Rate loop_rate( 30 );
+
     while ( ros::ok() )
     {
         // this image contains both right and left images
         fc2Error = camera.RetrieveBuffer( &grabbedImage );
+
         if ( fc2Error != FC2::PGRERROR_OK )
         {
             exit( FC2T::handleFc2Error( fc2Error ) );
@@ -95,20 +99,22 @@ main( int argc, char** argv )
             return EXIT_FAILURE;
         }
 
-//        FC2T::ErrorType fc2TriclopsError;
-//        fc2TriclopsError = FC2T::unpackUnprocessedRawOrMono16Image(
-//                               grabbedImage,
-//                               true /*assume little endian*/,
-//                               imageContainer.unprocessed[RIGHT],
-//                               imageContainer.unprocessed[LEFT] );
+        FC2T::ErrorType fc2TriclopsError;
+        fc2TriclopsError = FC2T::unpackUnprocessedRawOrMono16Image(
+                               grabbedImage,
+                               true /*assume little endian*/,
+                               imageContainer.unprocessed[RIGHT],
+                               imageContainer.unprocessed[LEFT] );
 
-//        if ( fc2TriclopsError != FC2T::ERRORTYPE_OK )
-//        {
-//            FC2T::handleFc2TriclopsError( fc2TriclopsError, "unpackUnprocessedRawOrMono16Image" );
-//        }
+        if ( fc2TriclopsError != FC2T::ERRORTYPE_OK )
+        {
+            FC2T::handleFc2TriclopsError( fc2TriclopsError, "unpackUnprocessedRawOrMono16Image" );
+        }
 
-//        // Convert FC2::Image to BGR format
-//        convertToBGR( imageContainer.unprocessed[1], imageContainer.bgr[1] );
+        // Convert FC2::Image to BGR format
+        convertToBGR( imageContainer.unprocessed[1], imageContainer.bgr[1] );
+
+
 
         // output image disparity image with subpixel interpolation
         TriclopsImage16 disparityImage16;
@@ -125,15 +131,15 @@ main( int argc, char** argv )
         PointCloud cloud3d;
 
         // save text file containing 3d points
-        if ( save3dPoints( grabbedImage, triclops, disparityImage16, triclopsColorInput ) );
+        if ( do3dPoints( grabbedImage, triclops, disparityImage16, triclopsColorInput, cloud3d ) )
 
         {
             return EXIT_FAILURE;
         }
-//        cloud3d.header.frame_id = "map";
-//        cloud3d.header.stamp = ros::Time::now().toNSec();
-//        pointCloudPublisher.publish( cloud3d );
 
+        cloud3d.header.frame_id = "bumblebee2";
+        cloud3d.header.stamp = ros::Time::now().toNSec();
+        pointCloudPublisher.publish( cloud3d );
         ros::spinOnce();
         loop_rate.sleep();
     }

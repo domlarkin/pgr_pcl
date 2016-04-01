@@ -142,7 +142,7 @@ int generateTriclopsInput( FC2::Image const & grabbedImage,
 
     FC2::Image * monoImage = imageContainer.mono;
 
-    ROS_INFO( "UnrpocessedImage cols,rows %d,%d", unprocessedImage[RIGHT].GetCols(), unprocessedImage[RIGHT].GetRows() );
+    //ROS_INFO( "UnrpocessedImage cols,rows %d,%d", unprocessedImage[RIGHT].GetCols(), unprocessedImage[RIGHT].GetRows() );
 
     // check if the unprocessed image is color
     if ( unprocessedImage[RIGHT].GetBayerTileFormat() != FC2::NONE )
@@ -235,8 +235,12 @@ int doStereo( TriclopsContext const & triclops,
     te = triclopsSetSubpixelInterpolation( triclops, 1 );
     _HANDLE_TRICLOPS_ERROR( "triclopsSetSubpixelInterpolation()", te );
 
-    //    te = triclopsSetDisparity(triclops, 0, 70);
-    //    _HANDLE_TRICLOPS_ERROR("triclopsSetSubpixelInterpolation()", te);
+    te = triclopsSetDisparity( triclops, 0, 70 );
+    _HANDLE_TRICLOPS_ERROR( "triclopsSetSubpixelInterpolation()", te );
+
+    //ROS_INFO("stereoData x,y: %d,%d",stereoData.nrows, stereoData.ncols);
+    te = triclopsSetResolution( triclops, stereoData.nrows, stereoData.ncols );
+    _HANDLE_TRICLOPS_ERROR( "triclopsSetResolution()", te );
 
     // Rectify the images
     te = triclopsRectify( triclops, const_cast<TriclopsInput *>( &stereoData ) );
@@ -273,14 +277,12 @@ int do3dPoints( FC2::Image      const & grabbedImage,
     unsigned short * row;
     unsigned short   disparity;
     PointT           point3d;
-    ROS_INFO( "TTTTTTTTTTTTTTTT  In 3d POINTS" );
 
     // Rectify the color image if applicable
     bool isColor = false;
 
     if ( grabbedImage.GetPixelFormat() == FC2::PIXEL_FORMAT_RAW16 )
     {
-        ROS_INFO( "TTTTTTTTTTTTTTTT  B4 rectigy color" );
         isColor = true;
         te = triclopsRectifyColorImage( triclops,
                                         TriCam_REFERENCE,
@@ -304,6 +306,7 @@ int do3dPoints( FC2::Image      const & grabbedImage,
 
     // Determine the number of pixels spacing per row
     pixelinc = disparityImage16.rowinc / 2;
+    //ROS_INFO("DisparityData x,y: %d,%d",disparityImage16.nrows, disparityImage16.ncols);
 
     for ( i = 0, k = 0; i < disparityImage16.nrows; i++ )
     {
@@ -322,9 +325,9 @@ int do3dPoints( FC2::Image      const & grabbedImage,
                 // look at points within a range
                 if ( z < 5.0 )
                 {
-                    point3d.x = x;
-                    point3d.y = y;
-                    point3d.z = z;
+                    point3d.x = z;
+                    point3d.y = -x;
+                    point3d.z = -y;
 
                     if ( isColor )
                     {
@@ -349,118 +352,6 @@ int do3dPoints( FC2::Image      const & grabbedImage,
         }
     }
 
-    printf( "Points in file: %d\n", nPoints );
-
+    //ROS_INFO( "Points in file: %d\n", nPoints );
     return 0;
-
 }
-
-
-int save3dPoints( FC2::Image      const & grabbedImage,
-                  TriclopsContext const & triclops,
-                  TriclopsImage16 const & disparityImage16,
-                  TriclopsInput   const & colorData )
-{
-    TriclopsImage monoImage = {0};
-    TriclopsColorImage colorImage = {0};
-    TriclopsError te;
-
-    float            x, y, z;
-    int             r, g, b;
-    FILE             * pPointFile;
-    int              nPoints = 0;
-    int              pixelinc ;
-    int              i, j, k;
-    unsigned short * row;
-    unsigned short   disparity;
-
-    // Rectify the color image if applicable
-    bool isColor = false;
-
-    if ( grabbedImage.GetPixelFormat() == FC2::PIXEL_FORMAT_RAW16 )
-    {
-        isColor = true;
-        te = triclopsRectifyColorImage( triclops,
-                                        TriCam_REFERENCE,
-                                        const_cast<TriclopsInput *>( &colorData ),
-                                        &colorImage );
-        _HANDLE_TRICLOPS_ERROR( "triclopsRectifyColorImage()", te );
-    }
-    else
-    {
-        te = triclopsGetImage( triclops,
-                               TriImg_RECTIFIED,
-                               TriCam_REFERENCE,
-                               &monoImage );
-        _HANDLE_TRICLOPS_ERROR( "triclopsGetImage()", te );
-    }
-
-
-    // Save points to disk
-    const char * pFilename = "out.pts";
-    pPointFile = fopen( pFilename, "w+" );
-
-    if ( pPointFile != NULL )
-    {
-        printf( "Opening output file %s\n", pFilename );
-    }
-    else
-    {
-        printf( "Error opening output file %s\n", pFilename );
-        return 1;
-    }
-
-    // The format for the output file is:
-    // <x> <y> <z> <red> <grn> <blu> <row> <col>
-    // <x> <y> <z> <red> <grn> <blu> <row> <col>
-    // ...
-
-    // Determine the number of pixels spacing per row
-    pixelinc = disparityImage16.rowinc / 2;
-
-    for ( i = 0, k = 0; i < disparityImage16.nrows; i++ )
-    {
-        row = disparityImage16.data + i * pixelinc;
-
-        for ( j = 0; j < disparityImage16.ncols; j++, k++ )
-        {
-            disparity = row[j];
-
-            // do not save invalid points
-            if ( disparity < 0xFF00 )
-            {
-                // convert the 16 bit disparity value to floating point x,y,z
-                triclopsRCD16ToXYZ( triclops, i, j, disparity, &x, &y, &z );
-
-                // look at points within a range
-                if ( z < 5.0 )
-                {
-                    if ( isColor )
-                    {
-                        r = ( int )colorImage.red[k];
-                        g = ( int )colorImage.green[k];
-                        b = ( int )colorImage.blue[k];
-                    }
-                    else
-                    {
-                        // For mono cameras, we just assign the same value to RGB
-                        r = ( int )monoImage.data[k];
-                        g = ( int )monoImage.data[k];
-                        b = ( int )monoImage.data[k];
-                    }
-
-                    fprintf( pPointFile, "%f %f %f %d %d %d %d %d\n", x, y, z, r, g, b, i, j );
-                    nPoints++;
-                }
-            }
-        }
-    }
-
-    fclose( pPointFile );
-    printf( "Points in file: %d\n", nPoints );
-
-    return 0;
-
-}
-
-
