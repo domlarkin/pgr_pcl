@@ -128,18 +128,18 @@ main( int argc, char** argv )
         // Publish images
         ImagePublisher imagePublisher( grabbedImage, imageContainer, &( image_pub_left ), &( image_pub_right ) );
 
-        PointCloud cloud3d;
+//        PointCloud cloud3d;
 
-        // save text file containing 3d points
-        if ( do3dPoints( grabbedImage, triclops, disparityImage16, triclopsColorInput, cloud3d ) )
+//        // save text file containing 3d points
+//        if ( do3dPoints( grabbedImage, triclops, disparityImage16, triclopsColorInput, cloud3d ) )
 
-        {
-            return EXIT_FAILURE;
-        }
+//        {
+//            return EXIT_FAILURE;
+//        }
 
-        cloud3d.header.frame_id = "bumblebee2";
-        cloud3d.header.stamp = ros::Time::now().toNSec();
-        pointCloudPublisher.publish( cloud3d );
+//        cloud3d.header.frame_id = "bumblebee2";
+//        cloud3d.header.stamp = ros::Time::now().toNSec();
+//        pointCloudPublisher.publish( cloud3d );
         ros::spinOnce();
         loop_rate.sleep();
     }
